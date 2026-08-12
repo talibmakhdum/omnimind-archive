@@ -1,0 +1,41 @@
+{
+  "conversations": [
+    {
+      "id": "conv_ml",
+      "title": "ML Basics",
+      "create_time": 1705312800,
+      "messages": [
+        {
+          "id": "msg_1",
+          "role": "user",
+          "content": {"content_type": "text", "parts": ["What is machine learning?"]},
+          "create_time": 1705312800
+        },
+        {
+          "id": "msg_2",
+          "role": "assistant",
+          "content": {
+            "content_type": "text",
+            "parts": ["Machine learning is a subset of AI that learns patterns from data using algorithms."]
+          },
+          "create_time": 1705312900
+        },
+        {
+          "id": "msg_3",
+          "role": "user",
+          "content": {"content_type": "text", "parts": ["Email notes to ada@example.com and call 415-555-1212."]},
+          "create_time": 1705313000
+        },
+        {
+          "id": "msg_4",
+          "role": "assistant",
+          "content": {
+            "content_type": "text",
+            "parts": ["Artificial intelligence is the science of making machines perform cognitive tasks."]
+          },
+          "create_time": 1705313100
+        }
+      ]
+    }
+  ]
+}
