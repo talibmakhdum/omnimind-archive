@@ -1,0 +1,44 @@
+# Copy to .github/workflows/ci.yml if the GitHub App has workflows permission.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Ruff
+        run: ruff check app tests
+      - name: Mypy
+        run: mypy app --ignore-missing-imports
+      - name: Pytest
+        env:
+          ALLOW_INMEMORY_VECTORS: "true"
+          QUEUE_BACKEND: memory
+          API_KEY: test-key
+          AUTH_REQUIRED: "true"
+        run: PYTHONPATH=. pytest tests/ -v --cov=app
+      - name: Alembic
+        run: PYTHONPATH=. alembic upgrade head
+      - name: pip-audit
+        run: pip-audit -r requirements.txt || true
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f Dockerfile.api -t omnimind-api:ci .

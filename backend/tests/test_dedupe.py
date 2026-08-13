@@ -1,7 +1,6 @@
 import sqlite3
 
 import pytest
-
 from app.db import init_db
 from app.dedupe import DedupeEngine, canonicalize_content, compute_fingerprint
 
