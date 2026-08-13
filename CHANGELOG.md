@@ -10,7 +10,7 @@
 - Prometheus request/latency/queue/vector-health metrics + Grafana dashboard and alert rules
 - JSONL export/import (`omnimind.archive.export`)
 - Python SDK skeleton (`sdk/omnimind`)
-- GitHub Actions CI (3.10–3.12), Dependabot, issue/PR templates, `CONTRIBUTING.md`
+- CI workflow YAML in `docs/github-actions/` (copy to `.github/workflows/` when permitted), Dependabot, issue/PR templates, `CONTRIBUTING.md`
 - Ops docs: architecture diagram, OpenAPI notes, backup/restore, zero-downtime, threat model
 - Test DB seeder and DB read/write + vector fallback tests
 
