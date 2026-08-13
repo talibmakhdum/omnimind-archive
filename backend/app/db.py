@@ -99,6 +99,16 @@ CREATE TABLE IF NOT EXISTS search_jobs (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    key_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    revoked INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_revoked ON api_keys(revoked);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
     message_id,
     chunk_index,

@@ -1,0 +1,48 @@
+groups:
+  - name: omnimind
+    interval: 1m
+    rules:
+      - alert: OmniMindHighErrorRate
+        expr: |
+          sum(rate(omnimind_http_errors_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(omnimind_requests_total[5m])), 0.001) > 0.05
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: OmniMind 5xx rate > 5% for 10m
+
+      - alert: OmniMindHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(omnimind_request_latency_seconds_bucket[5m])) by (le)) > 2
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: OmniMind p95 latency > 2s
+
+      - alert: OmniMindVectorStoreDown
+        expr: omnimind_vector_store_health == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: Vector store health is 0
+
+      - alert: OmniMindQueueBacklog
+        expr: omnimind_queue_length > 50
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Ingest queue length stuck above 50
+
+      - alert: OmniMindBackupMissing
+        # Export this from the backup cron as a pushgateway gauge named omnimind_last_backup_unixtime
+        expr: (time() - omnimind_last_backup_unixtime) > 172800
+        for: 1h
+        labels:
+          severity: ticket
+        annotations:
+          summary: No successful backup recorded in 48h

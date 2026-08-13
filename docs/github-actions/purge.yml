@@ -1,0 +1,39 @@
+# Example scheduled retention job. Wire secrets / a self-hosted runner
+# that can reach the production DATA_DIR before enabling.
+name: Retention purge
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: Retention days
+        default: "90"
+      execute:
+        description: Set to "true" to delete (default dry-run)
+        default: "false"
+
+jobs:
+  purge:
+    if: ${{ github.event_name == 'workflow_dispatch' }} # keep schedule off until a runner is configured
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Dry-run purge
+        env:
+          PURGE_ENABLED: "true"
+          DATA_DIR: ${{ secrets.OMNIMIND_DATA_DIR || '.data' }}
+        run: |
+          PYTHONPATH=. python -m app.purge --days "${{ github.event.inputs.days || '90' }}"
+          if [ "${{ github.event.inputs.execute }}" = "true" ]; then
+            PYTHONPATH=. python -m app.purge --days "${{ github.event.inputs.days || '90' }}" --execute
+          fi

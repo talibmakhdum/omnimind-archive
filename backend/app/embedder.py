@@ -184,7 +184,35 @@ class ChromaVectorDB:
         return self.collection.query(query_embedding, top_k)
 
     def health(self) -> str:
-        return "ok" if self._backend in {"chroma", "memory"} else "degraded"
+        if self._backend == "chroma":
+            return "ok"
+        if self._backend == "memory":
+            return "ok"
+        return "degraded"
+
+    def count(self) -> int:
+        if self._backend == "chroma":
+            try:
+                return int(self.collection.count())
+            except Exception:
+                return 0
+        return len(getattr(self.collection, "ids", []))
+
+    def delete_ids(self, ids: list[str]) -> None:
+        if not ids:
+            return
+        if self._backend == "chroma":
+            try:
+                self.collection.delete(ids=ids)
+            except Exception:
+                logger.warning("Chroma delete failed for %s ids", len(ids))
+            return
+        mem = self.collection
+        keep = [i for i, _id in enumerate(mem.ids) if _id not in set(ids)]
+        mem.ids = [mem.ids[i] for i in keep]
+        mem.embeddings = [mem.embeddings[i] for i in keep]
+        mem.metadatas = [mem.metadatas[i] for i in keep]
+        mem.documents = [mem.documents[i] for i in keep]
 
     @property
     def backend(self) -> str:

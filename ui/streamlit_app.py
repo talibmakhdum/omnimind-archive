@@ -54,7 +54,13 @@ with st.sidebar:
                 "consent_given": "true",
             }
             try:
-                response = requests.post(f"{API}/ingest", files=files, data=data, timeout=30)
+                response = requests.post(
+                    f"{API}/ingest",
+                    files=files,
+                    data=data,
+                    headers=_headers(),
+                    timeout=30,
+                )
                 response.raise_for_status()
                 result = response.json()
                 st.session_state.ingest_id = result["ingest_id"]

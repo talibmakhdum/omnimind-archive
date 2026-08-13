@@ -65,6 +65,8 @@ class Settings(BaseSettings):
 
     secret_key: str = "dev-secret-key"
     api_key: str = ""
+    api_key_hash: str = ""
+    bcrypt_rounds: int = 12
     auth_required: bool = False
     allowed_origins: str = "http://localhost:8501,http://localhost:3000"
     cors_enabled: bool = True

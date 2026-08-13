@@ -1,0 +1,30 @@
+# Heavy ingest/search benches — not part of the <10m PR gate.
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 0"
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: pip install -r backend/requirements.txt
+      - name: Run harness
+        env:
+          ALLOW_INMEMORY_VECTORS: "true"
+          QUEUE_BACKEND: memory
+          BCRYPT_ROUNDS: "4"
+        run: PYTHONPATH=backend python docs/bench/ingest_bench.py --docs 200 --queries 20
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: docs/bench/results.*
+          if-no-files-found: ignore
