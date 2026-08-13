@@ -1,10 +1,29 @@
-FROM python:3.11-slim
-
-WORKDIR /app
+# syntax=docker/dockerfile:1
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
 COPY backend/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r /tmp/requirements.txt
+
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser \
+    && mkdir -p /data/sqlite /data/chroma /data/cache \
+    && chown -R appuser:appuser /data /app
+COPY --from=builder /install /usr/local
 COPY backend /app
-ENV PYTHONPATH=/app
-ENV FASTAPI_HOST=0.0.0.0
+COPY backend/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh && chown -R appuser:appuser /app
+ENV PYTHONPATH=/app \
+    FASTAPI_HOST=0.0.0.0 \
+    DATA_DIR=/data/sqlite \
+    CHROMA_PERSIST_DIR=/data/chroma \
+    QUANTIZE_CACHE_DIR=/data/cache \
+    ALLOW_INMEMORY_VECTORS=true \
+    PYTHONDONTWRITEBYTECODE=1
+USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+ENTRYPOINT ["/app/entrypoint.sh"]

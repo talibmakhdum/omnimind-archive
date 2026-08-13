@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
-import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -195,9 +192,27 @@ def get_shared_engines() -> tuple[EmbeddingEngine, ChromaVectorDB]:
     return _shared_embedder, _shared_vectors  # type: ignore[return-value]
 
 
-def run_ingest_job(conn, ingest_id: str, file_content: bytes, filename: str, source_platform: str) -> None:
+def run_ingest_job(
+    ingest_id: str,
+    file_ref: str | bytes,
+    filename: str,
+    source_platform: str,
+    conn=None,
+) -> None:
+    from app.db import get_connection
+
     settings = get_settings()
+    if isinstance(file_ref, (bytes, bytearray)):
+        file_content = bytes(file_ref)
+    else:
+        file_content = Path(file_ref).read_bytes()
+
+    ctx = get_connection() if conn is None else None
+    if ctx is not None:
+        conn = ctx.__enter__()
+    assert conn is not None
     try:
+        logger.info("ingest_start", extra={"ingest_id": ingest_id})
         conn.execute(
             "UPDATE ingest_jobs SET status = ?, progress_pct = ? WHERE id = ?",
             ("processing", 5, ingest_id),
@@ -212,6 +227,7 @@ def run_ingest_job(conn, ingest_id: str, file_content: bytes, filename: str, sou
             ("completed", 100, json.dumps(result), ingest_id),
         )
         conn.commit()
+        logger.info("ingest_complete", extra={"ingest_id": ingest_id})
     except Exception as exc:
         dest = Path(settings.failed_exports_dir)
         dest.mkdir(parents=True, exist_ok=True)
@@ -222,3 +238,7 @@ def run_ingest_job(conn, ingest_id: str, file_content: bytes, filename: str, sou
         )
         conn.commit()
         audit_log({"event": "ingest_failed", "ingest_id": ingest_id, "error": str(exc)})
+        logger.exception("ingest_failed", extra={"ingest_id": ingest_id})
+    finally:
+        if ctx is not None:
+            ctx.__exit__(None, None, None)

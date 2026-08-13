@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     vector_db: str = "chroma"
     chroma_persist_dir: str = ".chroma"
     chroma_collection: str = "omnimind_v1"
+    allow_inmemory_vectors: bool = True
 
     bm25_top_k: int = 50
     vector_top_k: int = 50
@@ -46,6 +47,7 @@ class Settings(BaseSettings):
     data_dir: str = ".data"
     checkpoint_dir: str = ".data/checkpoints"
     failed_exports_dir: str = ".data/failed_exports"
+    upload_dir: str = ".data/uploads"
     max_upload_size_mb: int = 500
     retention_days: int = 90
     purge_enabled: bool = False
@@ -62,15 +64,27 @@ class Settings(BaseSettings):
     log_redact_secrets: bool = True
 
     secret_key: str = "dev-secret-key"
+    api_key: str = ""
+    auth_required: bool = False
     allowed_origins: str = "http://localhost:8501,http://localhost:3000"
     cors_enabled: bool = True
 
     openai_api_key: str = ""
     huggingface_api_key: str = ""
 
+    redis_url: str = ""
+    queue_backend: str = "memory"
+    queue_name: str = "omnimind-ingest"
+
+    sentry_dsn: str = ""
+
     @property
     def db_path(self) -> str:
         return str(Path(self.data_dir) / "archive.db")
+
+    @property
+    def database_url(self) -> str:
+        return f"sqlite:///{self.db_path}"
 
     @property
     def audit_path(self) -> str:
@@ -84,6 +98,13 @@ def get_settings() -> Settings:
 
 def ensure_dirs(settings: Settings | None = None) -> None:
     s = settings or get_settings()
-    for d in (s.data_dir, s.checkpoint_dir, s.failed_exports_dir, s.chroma_persist_dir, s.quantize_cache_dir):
+    for d in (
+        s.data_dir,
+        s.checkpoint_dir,
+        s.failed_exports_dir,
+        s.upload_dir,
+        s.chroma_persist_dir,
+        s.quantize_cache_dir,
+    ):
         Path(d).mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("HF_HOME", s.quantize_cache_dir)

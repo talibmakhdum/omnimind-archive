@@ -125,10 +125,19 @@ class InMemoryVectorDB:
 
 
 class ChromaVectorDB:
-    def __init__(self, persist_dir: str = ".chroma", collection_name: str = "omnimind_v1"):
+    def __init__(
+        self,
+        persist_dir: str = ".chroma",
+        collection_name: str = "omnimind_v1",
+        allow_inmemory: bool | None = None,
+    ):
+        from app.config import get_settings
+
         self.persist_dir = persist_dir
         self.collection_name = collection_name
         self._backend: Any
+        if allow_inmemory is None:
+            allow_inmemory = get_settings().allow_inmemory_vectors
         try:
             import chromadb
 
@@ -139,7 +148,12 @@ class ChromaVectorDB:
             )
             self._backend = "chroma"
         except Exception as exc:
-            logger.warning("Chroma unavailable (%s); using in-memory vectors.", exc)
+            logger.warning("Chroma unavailable (%s); falling back to in-memory vectors.", exc)
+            if not allow_inmemory:
+                raise RuntimeError(
+                    "Chroma unavailable and ALLOW_INMEMORY_VECTORS=false. "
+                    "Install chromadb or set ALLOW_INMEMORY_VECTORS=true for development."
+                ) from exc
             self.collection = InMemoryVectorDB()
             self._backend = "memory"
 
@@ -168,3 +182,10 @@ class ChromaVectorDB:
                 include=["metadatas", "documents", "distances"],
             )
         return self.collection.query(query_embedding, top_k)
+
+    def health(self) -> str:
+        return "ok" if self._backend in {"chroma", "memory"} else "degraded"
+
+    @property
+    def backend(self) -> str:
+        return str(self._backend)

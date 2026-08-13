@@ -9,6 +9,13 @@ import requests
 import streamlit as st
 
 API = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+API_KEY = os.environ.get("API_KEY", "")
+
+
+def _headers() -> dict[str, str]:
+    if not API_KEY:
+        return {}
+    return {"Authorization": f"Bearer {API_KEY}"}
 
 st.set_page_config(page_title="OmniMind Archive", layout="wide")
 
@@ -89,6 +96,7 @@ if query:
             response = requests.post(
                 f"{API}/query",
                 json={"q": query, "redact_level": redact},
+                headers=_headers(),
                 timeout=60,
             )
             response.raise_for_status()

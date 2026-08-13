@@ -1,28 +1,75 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - omnimind_redis:/data
+
   fastapi:
     build:
       context: .
       dockerfile: Dockerfile.api
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - FASTAPI_HOST=0.0.0.0
-      - FASTAPI_PORT=8000
       - LOCAL_ONLY=true
       - EMBEDDING_PROVIDER=local
+      - DATA_DIR=/data/sqlite
+      - CHROMA_PERSIST_DIR=/data/chroma
+      - ALLOW_INMEMORY_VECTORS=true
+      - REDIS_URL=redis://redis:6379/0
+      - QUEUE_BACKEND=rq
+      - API_KEY=${API_KEY:-changeme}
+      - AUTH_REQUIRED=true
+      - ALLOWED_ORIGINS=http://localhost:8501
+      - SENTRY_DSN=${SENTRY_DSN:-}
     volumes:
-      - ./.data:/app/.data
-      - ./.chroma:/app/.chroma
-      - ./.cache:/app/.cache
+      - omnimind_data:/data/sqlite
+      - omnimind_chroma:/data/chroma
+      - omnimind_cache:/data/cache
+    depends_on:
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "app.worker"]
+    environment:
+      - DATA_DIR=/data/sqlite
+      - CHROMA_PERSIST_DIR=/data/chroma
+      - ALLOW_INMEMORY_VECTORS=true
+      - REDIS_URL=redis://redis:6379/0
+      - QUEUE_BACKEND=rq
+    volumes:
+      - omnimind_data:/data/sqlite
+      - omnimind_chroma:/data/chroma
+      - omnimind_cache:/data/cache
+    depends_on:
+      - redis
+      - fastapi
 
   streamlit:
     build:
       context: ./ui
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8501:8501"
     environment:
       - STREAMLIT_SERVER_PORT=8501
       - API_BASE_URL=http://fastapi:8000
+      - API_KEY=${API_KEY:-changeme}
     depends_on:
       - fastapi
+
+volumes:
+  omnimind_data:
+  omnimind_chroma:
+  omnimind_cache:
+  omnimind_redis:
