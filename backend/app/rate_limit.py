@@ -8,6 +8,9 @@ from collections import defaultdict
 from typing import Any
 
 from fastapi import HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from app.config import get_settings
 
@@ -36,6 +39,7 @@ class RateLimiter:
 
     def _allow_redis(self, key: str, limit: int, window_seconds: float, now: float) -> bool:
         rkey = f"rl:{key}"
+        assert self.redis is not None
         pipe = self.redis.pipeline()
         pipe.zremrangebyscore(rkey, 0, now - window_seconds)
         pipe.zcard(rkey)
@@ -78,3 +82,23 @@ def reset_limiter_for_tests(redis_client: Any | None = None) -> RateLimiter:
     global _limiter
     _limiter = RateLimiter(redis_client=redis_client)
     return _limiter
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Token-bucket / sliding-window limiter (Redis when configured)."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        settings = get_settings()
+        path = request.url.path
+        method = request.method.upper()
+        limiter = get_limiter()
+        try:
+            if path == "/ingest" and method == "POST":
+                limiter.check("ingest", settings.rate_limit_ingest_per_hour, 3600)
+            elif path == "/search" and method == "GET":
+                limiter.check("search", settings.rate_limit_search_per_minute, 60)
+            elif path == "/query" and method == "POST":
+                limiter.check("query", settings.rate_limit_query_per_minute, 60)
+        except HTTPException as exc:
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        return await call_next(request)

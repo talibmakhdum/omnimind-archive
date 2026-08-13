@@ -71,6 +71,18 @@ def get_memory_queue() -> MemoryJobQueue:
     return _memory_queue
 
 
+def queue_length() -> int:
+    """Best-effort ingest queue depth for Prometheus."""
+    settings = get_settings()
+    if settings.queue_backend == "rq" and settings.redis_url:
+        try:
+            rq = RQJobQueue(settings.redis_url, settings.queue_name)
+            return int(rq.queue.count)
+        except Exception:
+            pass
+    return len(get_memory_queue().pending)
+
+
 def enqueue_ingest(ingest_id: str, file_path: str, filename: str, source_platform: str) -> Any:
     """Enqueue run_ingest_job. Uses RQ when QUEUE_BACKEND=rq, else memory."""
     from app.ingest import run_ingest_job
